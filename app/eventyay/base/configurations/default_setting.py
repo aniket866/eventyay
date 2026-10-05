@@ -2360,7 +2360,8 @@ Your {event} team"""
             widget_kwargs={'attrs': {'rows': '2'}},
             help_text=_(
                 'This text will be shown below every page of your shop. Please only use this for '
-                'very important messages.'
+                'very important messages. This is configured globally in the admin dashboard and '
+                'applies to all events.'
             ),
         ),
     },

@@ -3,9 +3,11 @@ from decimal import Decimal
 from unittest.mock import patch
 
 import pytest
+from bs4 import BeautifulSoup
 from django import forms as dj_forms
 from django.urls import reverse
 from django.utils.timezone import now
+from i18nfield.strings import LazyI18nString
 
 from eventyay.base.models import User
 from eventyay.base.settings import (
@@ -19,6 +21,7 @@ from eventyay.control.forms.global_settings import (
     GlobalTicketingSettingsForm,
     paypal_connect_endpoint_choice,
 )
+from tests.tickets.base import extract_form_fields
 
 
 @pytest.fixture
@@ -51,6 +54,7 @@ class TestGlobalSettingsTabsAndSections:
             'etherpad',
             'voxbento',
             'hubspot',
+            'display',
         ]
         assert group_keys == expected_tabs
 
@@ -76,6 +80,10 @@ class TestGlobalSettingsTabsAndSections:
         assert 'id="tab-etherpad"' in content
         assert 'id="tab-voxbento"' in content
         assert 'id="tab-hubspot"' in content
+        assert 'id="tab-display"' in content
+
+        # Check Display tab content (global bottom text lives here)
+        assert 'banner_text_bottom' in content
 
         # Check Meta data content
         assert 'seo_homepage_title' in content
@@ -132,6 +140,30 @@ class TestGlobalSettingsTabsAndSections:
         assert gs.settings.get('update_check_perform', as_type=bool) is True
         assert gs.settings.get('update_check_email') == 'updates@example.com'
         assert gs.settings.get('telemetry_enabled', as_type=bool) is True
+
+    def test_bottom_text_can_be_saved_globally(self, staff_client):
+        url = reverse('eventyay_admin:admin.global.settings')
+        doc = BeautifulSoup(staff_client.get(url).content, 'lxml')
+        data = extract_form_fields(doc.select('form')[0])
+
+        textarea_names = [
+            field.get('name')
+            for field in doc.select('form textarea')
+            if (field.get('name') or '').startswith('banner_text_bottom')
+        ]
+        assert textarea_names, 'bottom text textarea is not rendered on the global settings page'
+
+        for name in textarea_names:
+            data[name] = 'Purchase with confidence — refunds until 14 days before the event.'
+
+        response = staff_client.post(url, data)
+        assert response.status_code == 302, (
+            response.context['form'].errors if response.context and 'form' in response.context else response.content
+        )
+
+        gs = GlobalSettingsObject()
+        stored = gs.settings.get('banner_text_bottom', as_type=LazyI18nString)
+        assert 'refunds until 14 days' in str(stored.localize('en'))
 
     @patch('eventyay.control.views.global_settings.update_check.apply')
     def test_update_check_trigger_in_settings(self, mock_update_check, staff_client):

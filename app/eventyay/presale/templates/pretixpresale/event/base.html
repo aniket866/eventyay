@@ -77,7 +77,11 @@
 {% endblock %}
 
 {% block footer %}
-    {% if request.event.settings.banner_text_bottom %}
+    {% if global_settings.banner_text_bottom %}
+        <div class="site-notice-bottom">
+            {{ global_settings.banner_text_bottom|event_localize|rich_text }}
+        </div>
+    {% elif request.event.settings.banner_text_bottom %}
         <div class="site-notice-bottom">
             {{ request.event.settings.banner_text_bottom|event_localize|rich_text }}
         </div>

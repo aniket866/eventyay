@@ -12,6 +12,9 @@ from django.utils.timezone import now
 from django_scopes import scopes_disabled
 from zoneinfo import ZoneInfo
 
+from bs4 import BeautifulSoup
+from i18nfield.strings import LazyI18nString
+
 from eventyay.base.models import (
     Event,
     Product as Item,
@@ -25,6 +28,7 @@ from eventyay.base.models import (
     WaitingListEntry,
 )
 from eventyay.base.models.product import SubEventProduct as SubEventItem, SubEventProductVariation as SubEventItemVariation
+from eventyay.base.settings import GlobalSettingsObject
 from tests.tickets.base import SoupTest
 from tests.tickets.testdummy.signals import FoobarSalesChannel
 from eventyay.presale.views.contact import ContactOrganizerView
@@ -1048,6 +1052,106 @@ class VoucherRedemptionVisibilityTest(EventTestMixin, SoupTest):
         self.item.save()
         doc = self.get_doc('/%s/%s/' % (self.orga.slug, self.event.slug))
         assert 'Redeem a voucher' in doc.text
+
+
+class CustomDisplayTextsTest(EventTestMixin, SoupTest):
+    """
+    Functional audit for the localized texts configured under
+    Ticket settings > General settings > Display (and, for the bottom text,
+    under Admin dashboard > Global settings > Display).
+    """
+
+    @scopes_disabled()
+    def setUp(self):
+        super().setUp()
+        self.q = Quota.objects.create(event=self.event, name='Quota', size=2)
+        self.item = Item.objects.create(
+            event=self.event,
+            name='Early-bird ticket',
+            default_price=Decimal('12.00'),
+            active=True,
+        )
+        self.q.items.add(self.item)
+        self.event.vouchers.create(quota=self.q)
+        self.gs = GlobalSettingsObject()
+
+    @property
+    def shop_url(self):
+        return '/%s/%s/' % (self.orga.slug, self.event.slug)
+
+    def test_presale_has_ended_text_rendered_above_shop(self):
+        self.event.presale_end = now() - datetime.timedelta(days=1)
+        self.event.save()
+        self.event.settings.set('presale_has_ended_text', LazyI18nString({'en': 'Sold out, see you in 2027!'}))
+        doc = self.get_doc(self.shop_url)
+        assert 'Sold out, see you in 2027!' in doc.text
+        # the default text is replaced by the configured one
+        assert 'The presale period for this event is over.' not in doc.text
+
+    def test_voucher_explanation_text_rendered_next_to_voucher_input(self):
+        self.event.settings.set('voucher_explanation_text', LazyI18nString({'en': 'Ask your friend for a code.'}))
+        doc = self.get_doc(self.shop_url)
+        aside = doc.select_one('aside[aria-labelledby="redeem-a-voucher"]')
+        assert aside is not None
+        assert 'Ask your friend for a code.' in aside.text
+        # the explanation is rendered together with the voucher input box
+        assert aside.select_one('input#voucher') is not None
+
+    def test_checkout_success_text_rendered_on_confirmation_page(self):
+        self.event.settings.set('checkout_success_text', LazyI18nString({'en': 'Please bring your ID card.'}))
+        self.event.settings.set('require_registered_account_for_tickets', False)
+        with scopes_disabled():
+            order = Order.objects.create(
+                status=Order.STATUS_PAID,
+                event=self.event,
+                email='dummy@dummy.dummy',
+                datetime=now(),
+                expires=now() + datetime.timedelta(days=1),
+                total=Decimal('12.00'),
+                locale='en',
+            )
+        response = self.client.get(
+            '/%s/%s/order/%s/%s/?thanks=1' % (self.orga.slug, self.event.slug, order.code, order.secret)
+        )
+        self.assertEqual(response.status_code, 200)
+        doc = BeautifulSoup(response.content, 'lxml')
+        thank_you = doc.select_one('.thank-you')
+        assert thank_you is not None
+        assert 'Please bring your ID card.' in thank_you.text
+
+    def test_banner_text_rendered_at_top_of_shop(self):
+        self.event.settings.set('banner_text', LazyI18nString({'en': 'Heads up: doors open at 9am.'}))
+        doc = self.get_doc(self.shop_url)
+        notice = doc.select_one('.site-notice-top')
+        assert notice is not None
+        assert 'Heads up: doors open at 9am.' in notice.text
+
+    def test_bottom_text_rendered_from_global_settings(self):
+        self.gs.settings.set('banner_text_bottom', LazyI18nString({'en': 'Powered by the platform.'}))
+        doc = self.get_doc(self.shop_url)
+        notice = doc.select_one('.site-notice-bottom')
+        assert notice is not None
+        assert 'Powered by the platform.' in notice.text
+
+    def test_bottom_text_rendered_from_event_setting_when_global_is_unset(self):
+        self.event.settings.set('banner_text_bottom', LazyI18nString({'en': 'Event footer note.'}))
+        doc = self.get_doc(self.shop_url)
+        notice = doc.select_one('.site-notice-bottom')
+        assert notice is not None
+        assert 'Event footer note.' in notice.text
+
+    def test_bottom_text_global_setting_takes_precedence(self):
+        self.gs.settings.set('banner_text_bottom', LazyI18nString({'en': 'Platform footer note.'}))
+        self.event.settings.set('banner_text_bottom', LazyI18nString({'en': 'Event footer note.'}))
+        doc = self.get_doc(self.shop_url)
+        notice = doc.select_one('.site-notice-bottom')
+        assert notice is not None
+        assert 'Platform footer note.' in notice.text
+        assert 'Event footer note.' not in doc.text
+
+    def test_bottom_text_absent_if_unset(self):
+        doc = self.get_doc(self.shop_url)
+        assert doc.select_one('.site-notice-bottom') is None
 
 
 class WaitingListTest(EventTestMixin, SoupTest):

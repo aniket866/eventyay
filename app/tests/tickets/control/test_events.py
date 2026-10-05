@@ -14,6 +14,7 @@ from django.test import override_settings
 
 from eventyay.base.models import Event, Order, Organizer, Team, User
 from eventyay.base.models.organizer import OrganizerBillingModel
+from eventyay.control.forms.event import GeneralEventSettingsForm
 from tests.testutils.mock import mocker_context
 from tests.tickets.base import SoupTest, extract_form_fields
 
@@ -795,6 +796,18 @@ class EventsTest(SoupTest):
             self.event1.settings.flush()
             assert self.event1.settings.get('primary_color') == '#000000'
             mocked.assert_any_call(args=(self.event1.pk,))
+
+    def test_display_settings_no_longer_offer_bottom_text(self):
+        """The bottom text moved to the global admin settings, so event settings must not offer it."""
+        doc = self.get_doc('/control/event/%s/%s/settings/' % (self.orga1.slug, self.event1.slug))
+        # the other display texts stay on the event level
+        assert 'Banner text (top)' in doc.text
+        assert 'End of presale text' in doc.text
+        assert 'Voucher explanation' in doc.text
+        assert 'Additional success message' in doc.text
+        # the bottom text is not configurable per event anymore
+        assert 'Banner text (bottom)' not in doc.text
+        assert 'banner_text_bottom' not in GeneralEventSettingsForm(obj=self.event1).fields
 
     def test_display_settings_do_not_override_parent(self):
         self.orga1.settings.primary_color = '#000000'

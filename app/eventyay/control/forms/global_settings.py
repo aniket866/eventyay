@@ -57,6 +57,7 @@ class GlobalSettingsForm(SettingsForm):
         'seo_twitter_title',
         'seo_twitter_description',
         'seo_fallback_text',
+        'banner_text_bottom',
     ]
 
     seo_social_image = ExtFileField(
@@ -631,6 +632,9 @@ class GlobalSettingsForm(SettingsForm):
                 'hubspot_client_id',
                 'hubspot_client_secret',
                 'hubspot_property_sync_ttl_minutes',
+            ]),
+            ('display', _('Display'), [
+                'banner_text_bottom',
             ]),
         ]
 
