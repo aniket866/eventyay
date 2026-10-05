@@ -687,7 +687,6 @@ class EventSettingsSerializer(SettingsSerializer):
         'voucher_explanation_text',
         'checkout_success_text',
         'banner_text',
-        'banner_text_bottom',
         'show_date_to',
         'show_times',
         'show_products_outside_presale_period',

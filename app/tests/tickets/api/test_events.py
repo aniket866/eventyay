@@ -8,6 +8,7 @@ from django.conf import settings
 from django.core.files.base import ContentFile
 from django_countries.fields import Country
 from django_scopes import scopes_disabled
+from i18nfield.strings import LazyI18nString
 import datetime
 UTC = datetime.timezone.utc
 
@@ -1059,6 +1060,23 @@ def test_patch_event_settings(token_client, organizer, event):
         assert set(resp.data['locales']) == set(locales)
         event.settings.flush()
         assert set(event.settings.locales) == set(locales)
+
+
+@pytest.mark.django_db
+def test_patch_event_settings_cannot_change_global_bottom_text(token_client, organizer, event):
+    event.settings.set('banner_text_bottom', LazyI18nString({'en': 'Existing event footer.'}))
+
+    resp = token_client.patch(
+        '/api/v1/organizers/{}/events/{}/settings/'.format(organizer.slug, event.slug),
+        {'banner_text_bottom': {'en': 'New event footer.'}},
+        format='json',
+    )
+
+    assert resp.status_code == 200
+    assert 'banner_text_bottom' not in resp.data
+    event.settings.flush()
+    footer = event.settings.get('banner_text_bottom', as_type=LazyI18nString)
+    assert footer.localize('en') == 'Existing event footer.'
 
 
 @pytest.mark.django_db

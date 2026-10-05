@@ -7,6 +7,8 @@ from bs4 import BeautifulSoup
 from django import forms as dj_forms
 from django.apps import apps
 from django.urls import NoReverseMatch, resolve, reverse
+from django.conf import settings
+from django.urls import reverse
 from django.utils.timezone import now
 from i18nfield.strings import LazyI18nString
 
@@ -90,6 +92,10 @@ class TestGlobalSettingsTabsAndSections:
             assert f'data-business-redirect-url="{reverse("plugins:eventyay_business:settings")}"' in content
         else:
             assert f'data-business-redirect-url="{reverse("eventyay_admin:admin.vouchers")}"' in content
+        doc = BeautifulSoup(response.content, 'lxml')
+        display_tab = doc.select_one('fieldset#tab-display')
+        assert display_tab is not None
+        assert display_tab.select_one('textarea[name^="banner_text_bottom"]') is not None
 
         # Check Meta data content
         assert 'seo_homepage_title' in content
@@ -113,6 +119,13 @@ class TestGlobalSettingsTabsAndSections:
         assert 'id="tab-payment-gateways"' not in content
         assert 'id="tab-payment_gateways"' not in content
         assert 'id="tab-cart"' not in content
+
+    def test_global_bottom_text_allows_event_languages(self):
+        form = GlobalSettingsForm()
+
+        enabled_locales = form.fields['banner_text_bottom'].widget.enabled_locales
+        assert 'de' in enabled_locales
+        assert set(enabled_locales) == {locale for locale, _ in settings.LANGUAGES}
 
     def test_settings_save_behavior(self, staff_client):
         url = reverse('eventyay_admin:admin.global.settings')

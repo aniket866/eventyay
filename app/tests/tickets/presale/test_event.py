@@ -1084,9 +1084,11 @@ class CustomDisplayTextsTest(EventTestMixin, SoupTest):
         self.event.save()
         self.event.settings.set('presale_has_ended_text', LazyI18nString({'en': 'Sold out, see you in 2027!'}))
         doc = self.get_doc(self.shop_url)
-        assert 'Sold out, see you in 2027!' in doc.text
+        presale_notice = doc.select_one('#tickets + .alert.alert-info')
+        assert presale_notice is not None
+        assert 'Sold out, see you in 2027!' in presale_notice.text
         # the default text is replaced by the configured one
-        assert 'The presale period for this event is over.' not in doc.text
+        assert 'The presale period for this event is over.' not in presale_notice.text
 
     def test_voucher_explanation_text_rendered_next_to_voucher_input(self):
         self.event.settings.set('voucher_explanation_text', LazyI18nString({'en': 'Ask your friend for a code.'}))

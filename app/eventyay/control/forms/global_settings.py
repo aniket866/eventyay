@@ -100,6 +100,9 @@ class GlobalSettingsForm(SettingsForm):
         self._setting_default()
 
         super().__init__(*args, obj=self.obj, **kwargs)
+        self.fields['banner_text_bottom'].widget.enabled_locales = [
+            locale for locale, _ in settings.LANGUAGES
+        ]
 
         anti_abuse_providers = [
             ('disabled', _('Disabled')),
