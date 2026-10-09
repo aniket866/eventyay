@@ -51,6 +51,22 @@
         </p>
     </form>
     <ul class="list-group">
+        <li class="list-group-item logentry-header">
+            <div class="row">
+                <div class="col-lg-2 col-sm-6 col-xs-12">
+                    <strong>{% trans "Date & time" %}</strong>
+                </div>
+                <div class="col-lg-2 col-sm-6 col-xs-12">
+                    <strong>{% trans "User" %}</strong>
+                </div>
+                <div class="col-lg-2 col-sm-12 col-xs-12">
+                    <strong>{% trans "Activity" %}</strong>
+                </div>
+                <div class="col-lg-6 col-sm-12 col-xs-12">
+                    <strong>{% trans "Description" %}</strong>
+                </div>
+            </div>
+        </li>
         {% for log in logs %}
             <li class="list-group-item logentry">
                 <div class="row">
