@@ -10,6 +10,20 @@
     min-height: 0;
 }
 
+#editor-canvas-area:has(#loading-initial) {
+    display: grid;
+}
+
+#editor-canvas-area:has(#loading-initial) > #pdf-canvas,
+#editor-canvas-area:has(#loading-initial) > #loading-container {
+    grid-area: 1 / 1;
+}
+
+#editor-canvas-area:has(#loading-initial) > #loading-container {
+    position: relative;
+    height: auto;
+}
+
 /* Scale the background canvas with its column and keep the Fabric wrapper aligned. */
 #pdf-canvas {
     display: block;
