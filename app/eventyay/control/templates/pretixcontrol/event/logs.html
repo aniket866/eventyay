@@ -7,7 +7,7 @@
     <form class="form-inline helper-display-inline" action="" method="get">
         <input type="hidden" name="content_type" value="{{ request.GET.content_type }}">
         <input type="hidden" name="object" value="{{ request.GET.object }}">
-        <p>
+        <div class="form-group">
             <select name="user" class="form-control">
                 <option value="">{% trans "All actions" %}</option>
                 <option value="yes" {% if request.GET.user == "yes" %}selected="selected"{% endif %}>
@@ -34,7 +34,27 @@
                 {% endfor %}
             </select>
             <button class="btn btn-primary" type="submit">{% trans "Filter" %}</button>
-        </p>
+        </div>
+        <div class="btn-group pull-right">
+            <button type="button" class="btn btn-default dropdown-toggle" data-toggle="dropdown">
+                <span class="fa fa-download"></span>
+                {% trans "Export" %}
+                <span class="caret"></span>
+            </button>
+            <ul class="dropdown-menu dropdown-menu-right">
+                <li>
+                    <a href="?{% if request.GET %}{{ request.GET.urlencode }}&amp;{% endif %}export=xlsx">
+                        {% trans "Excel (.xlsx)" %}
+                    </a>
+                </li>
+                <li>
+                    <a href="?{% if request.GET %}{{ request.GET.urlencode }}&amp;{% endif %}export=csv">
+                        {% trans "CSV" %}
+                    </a>
+                </li>
+            </ul>
+        </div>
+        <div class="clearfix"></div>
     </form>
     <ul class="list-group">
         {% for log in logs %}

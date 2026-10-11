@@ -26,8 +26,10 @@ from django.http import (
 )
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
+from django.utils.formats import date_format
 from django.utils.functional import cached_property
-from django.utils.timezone import now
+from django.utils.html import strip_tags
+from django.utils.timezone import localtime, now
 from django.utils.translation import gettext
 from django.utils.translation import gettext_lazy as _
 from django.views.generic import DeleteView, FormView, ListView
@@ -38,6 +40,7 @@ from i18nfield.utils import I18nJSONEncoder
 
 from eventyay.base.channels import get_all_sales_channels
 from eventyay.base.email import get_available_placeholders
+from eventyay.base.exporter import ListExporter
 from eventyay.base.meetup import is_meetup_event
 from eventyay.common.sanitizers import sanitize_email_html
 from eventyay.timezones import localize_datetime
@@ -1228,10 +1231,66 @@ class EventDelete(RecentAuthenticationRequiredMixin, EventPermissionRequiredMixi
         return reverse('eventyay_common:dashboard')
 
 
+class EventLogExporter(ListExporter):
+    @property
+    def verbose_name(self):
+        return gettext('Event log')
+
+    @property
+    def identifier(self):
+        return 'event-log'
+
+    def __init__(self, event, logs):
+        super().__init__(event)
+        self.logs = logs
+
+    def get_filename(self):
+        return f'{self.event.slug}-logs'
+
+    def iterate_list(self, form_data):
+        yield [gettext('Date & time'), gettext('User'), gettext('Activity'), gettext('Description')]
+
+        for log in self.logs.iterator():
+            if log.user:
+                actor = log.user.get_full_name() or log.user.email
+                if log.oauth_application:
+                    actor = f'{actor} ({log.oauth_application.name})'
+            elif log.device:
+                actor = log.device.name
+            elif log.api_token:
+                actor = log.api_token.name
+            else:
+                actor = ''
+
+            yield [
+                date_format(localtime(log.datetime), 'SHORT_DATETIME_FORMAT'),
+                actor,
+                self._plain_text(log.display_object),
+                self._plain_text(log.display()),
+            ]
+
+    @staticmethod
+    def _plain_text(value):
+        return html.unescape(strip_tags(str(value or '')))
+
+
 class EventLog(EventPermissionRequiredMixin, PaginationMixin, ListView):
     template_name = 'pretixcontrol/event/logs.html'
     model = LogEntry
     context_object_name = 'logs'
+
+    def get(self, request, *args, **kwargs):
+        export_format = request.GET.get('export')
+        if export_format in {'csv', 'xlsx'}:
+            exporter = EventLogExporter(request.event, self.get_queryset())
+            filename, content_type, content = exporter.render(
+                {'_format': 'default' if export_format == 'csv' else 'xlsx'}
+            )
+            response = HttpResponse(content, content_type=content_type)
+            response['Content-Disposition'] = f'attachment; filename="{filename}"'
+            return response
+
+        return super().get(request, *args, **kwargs)
 
     def get_queryset(self):
         qs = (
