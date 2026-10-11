@@ -1181,10 +1181,14 @@ $(function () {
         }
     });
 
-    $("a[data-expandlogs], a[data-expandrefund], a[data-expandpayment]").click(function (e) {
+    document.addEventListener("click", function (e) {
+        var link = e.target.closest("a[data-expandlogs], a[data-expandrefund], a[data-expandpayment]");
+        if (!link) {
+            return;
+        }
         e.preventDefault();
-        var $a = $(this);
-        var id = $(this).attr("data-id");
+        var $a = $(link);
+        var id = link.getAttribute("data-id");
         $a.find(".fa").removeClass("fa-eye").addClass("fa-cog fa-spin");
         var url = '/control/logdetail/';
         if ($a.is("[data-expandrefund]")) {

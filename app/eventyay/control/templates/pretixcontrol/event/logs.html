@@ -1,113 +1,136 @@
 {% extends "pretixcontrol/items/base.html" %}
 {% load i18n %}
 {% load static %}
+{% load bootstrap3 %}
 {% block title %}{% trans "Event logs" %}{% endblock %}
 {% block inside %}
     <h1>{% trans "Event logs" %}</h1>
-    <form class="form-inline helper-display-inline" action="" method="get">
-        <input type="hidden" name="content_type" value="{{ request.GET.content_type }}">
-        <input type="hidden" name="object" value="{{ request.GET.object }}">
-        <p>
-            <select name="user" class="form-control">
-                <option value="">{% trans "All actions" %}</option>
-                <option value="yes" {% if request.GET.user == "yes" %}selected="selected"{% endif %}>
-                    {% trans "Team actions" %}
-                </option>
-                <option value="no" {% if request.GET.user == "no" %}selected="selected"{% endif %}>
-                    {% trans "Customer actions" %}
-                </option>
-                {% for up in userlist %}
-                    {% if up.user__id %}
-                        <option value="{{ up.user__id }}"
-                                {% if request.GET.user == up.user__id %}selected="selected"{% endif %}>
-                            {{ up.user__email }}
-                        </option>
-                    {% endif %}
-                {% endfor %}
-                {% for d in devicelist %}
-                    {% if d.device__id %}
-                        <option value="d-{{ d.device__id }}"
-                                {% if "d-" in request.GET.user and request.GET.user|slice:"2:" == d.device__id|slugify %}selected="selected"{% endif %}>
-                            {{ d.device__name }}
-                        </option>
-                    {% endif %}
-                {% endfor %}
-            </select>
-            <label for="{{ date_filter_form.date_from.id_for_label }}">
-                {{ date_filter_form.date_from.label }}
-            </label>
-            {{ date_filter_form.date_from }}
-            {% for error in date_filter_form.date_from.errors %}
-                <span class="text-danger">{{ error }}</span>
-            {% endfor %}
-            <label for="{{ date_filter_form.date_to.id_for_label }}">
-                {{ date_filter_form.date_to.label }}
-            </label>
-            {{ date_filter_form.date_to }}
-            {% for error in date_filter_form.date_to.errors %}
-                <span class="text-danger">{{ error }}</span>
-            {% endfor %}
-            <button class="btn btn-primary" type="submit">{% trans "Filter" %}</button>
-        </p>
-    </form>
-    <ul class="list-group">
-        {% for log in logs %}
-            <li class="list-group-item logentry">
-                <div class="row">
-                    <div class="col-lg-2 col-sm-6 col-xs-12">
-                        <span class="fa fa-clock-o"></span>
-                        {{ log.datetime|date:"SHORT_DATETIME_FORMAT" }}
-                        {% if log.shredded %}
-                            <span class="fa fa-eraser fa-danger fa-fw"
-                                  data-toggle="tooltip"
-                                  title="{% trans "Personal data was cleared from this log entry." %}">
-                            </span>
-                        {% endif %}
+    <div data-ajax-results-region>
+        <div class="advanced-filter-search" data-advanced-filter-search>
+            <form class="filter-form advanced-filter-search-form" action="" method="get">
+                <input type="hidden" name="content_type" value="{{ request.GET.content_type }}">
+                <input type="hidden" name="object" value="{{ request.GET.object }}">
+                <div class="advanced-filter-search-bar event-log-filter-bar">
+                    <div class="advanced-filter-field advanced-filter-field--inline">
+                        <div class="form-group">
+                            <label class="control-label" for="id_user">{% trans "Performed by" %}</label>
+                            <select id="id_user" name="user" class="form-control">
+                                <option value="">{% trans "All actions" %}</option>
+                                <option value="yes" {% if request.GET.user == "yes" %}selected="selected"{% endif %}>
+                                    {% trans "Team actions" %}
+                                </option>
+                                <option value="no" {% if request.GET.user == "no" %}selected="selected"{% endif %}>
+                                    {% trans "Customer actions" %}
+                                </option>
+                                {% for up in userlist %}
+                                    {% if up.user__id %}
+                                        <option value="{{ up.user__id }}"
+                                                {% if request.GET.user == up.user__id %}selected="selected"{% endif %}>
+                                            {{ up.user__email }}
+                                        </option>
+                                    {% endif %}
+                                {% endfor %}
+                                {% for d in devicelist %}
+                                    {% if d.device__id %}
+                                        <option value="d-{{ d.device__id }}"
+                                                {% if "d-" in request.GET.user and request.GET.user|slice:"2:" == d.device__id|slugify %}selected="selected"{% endif %}>
+                                            {{ d.device__name }}
+                                        </option>
+                                    {% endif %}
+                                {% endfor %}
+                            </select>
+                        </div>
                     </div>
-                    <div class="col-lg-2 col-sm-6 col-xs-12">
-                        {% if log.user %}
-                            {% if log.user.is_staff %}
-                                <span class="fa fa-id-card fa-danger fa-fw"
-                                      data-toggle="tooltip"
-                                      title="{% trans "This change was performed by the system administrator." %}">
-                                </span>
-                            {% else %}
-                                <span class="fa fa-user fa-fw"></span>
-                            {% endif %}
-                            {{ log.user.get_full_name }}
-                            {% if log.oauth_application %}
-                                <br><span class="fa fa-plug fa-fw"></span>
-                                {{ log.oauth_application.name }}
-                            {% endif %}
-                        {% elif log.device %}
-                            <span class="fa fa-mobile fa-fw"></span>
-                            {{ log.device.name }}
-                        {% elif log.api_token %}
-                            <span class="fa fa-key fa-fw"></span>
-                            {{ log.api_token.name }}
-                        {% endif %}
+                    <div class="advanced-filter-field advanced-filter-field--inline">
+                        <div class="form-group">
+                            <label class="control-label" for="{{ date_filter_form.date_from.id_for_label }}">
+                                {{ date_filter_form.date_from.label }}
+                            </label>
+                            {{ date_filter_form.date_from }}
+                            {% for error in date_filter_form.date_from.errors %}
+                                <span class="help-block">{{ error }}</span>
+                            {% endfor %}
+                        </div>
                     </div>
-                    <div class="col-lg-2 col-sm-12 col-xs-12">
-                        {% if log.display_object %}
-                            <span class="fa fa-flag"></span> {{ log.display_object|safe }}
-                        {% endif %}
+                    <div class="advanced-filter-field advanced-filter-field--inline">
+                        <div class="form-group">
+                            <label class="control-label" for="{{ date_filter_form.date_to.id_for_label }}">
+                                {{ date_filter_form.date_to.label }}
+                            </label>
+                            {{ date_filter_form.date_to }}
+                            {% for error in date_filter_form.date_to.errors %}
+                                <span class="help-block">{{ error }}</span>
+                            {% endfor %}
+                        </div>
                     </div>
-                    <div class="col-lg-6 col-sm-12 col-xs-12">
-                        {{ log.display }}
-                        {% if staff_session %}
-                            <a href="" class="btn btn-default btn-xs" data-expandlogs data-id="{{ log.pk }}">
-                                <span class="fa-eye fa fa-fw"></span>
-                                {% trans "Inspect" %}
-                            </a>
-                        {% endif %}
+                    <div class="advanced-filter-search-actions">
+                        <button class="btn btn-primary" type="submit">
+                            <span class="fa fa-filter" aria-hidden="true"></span>
+                            {% trans "Filter" %}
+                        </button>
                     </div>
                 </div>
-            </li>
-            {% empty %}
-            <div class="list-group-item">
-                <em>{% trans "No results" %}</em>
-            </div>
-        {% endfor %}
-    </ul>
-    {% include "pretixcontrol/pagination.html" %}
+            </form>
+        </div>
+        <ul class="list-group">
+            {% for log in logs %}
+                <li class="list-group-item logentry">
+                    <div class="row">
+                        <div class="col-lg-2 col-sm-6 col-xs-12">
+                            <span class="fa fa-clock-o"></span>
+                            {{ log.datetime|date:"SHORT_DATETIME_FORMAT" }}
+                            {% if log.shredded %}
+                                <span class="fa fa-eraser fa-danger fa-fw"
+                                      data-toggle="tooltip"
+                                      title="{% trans "Personal data was cleared from this log entry." %}">
+                                </span>
+                            {% endif %}
+                        </div>
+                        <div class="col-lg-2 col-sm-6 col-xs-12">
+                            {% if log.user %}
+                                {% if log.user.is_staff %}
+                                    <span class="fa fa-id-card fa-danger fa-fw"
+                                          data-toggle="tooltip"
+                                          title="{% trans "This change was performed by the system administrator." %}">
+                                    </span>
+                                {% else %}
+                                    <span class="fa fa-user fa-fw"></span>
+                                {% endif %}
+                                {{ log.user.get_full_name }}
+                                {% if log.oauth_application %}
+                                    <br><span class="fa fa-plug fa-fw"></span>
+                                    {{ log.oauth_application.name }}
+                                {% endif %}
+                            {% elif log.device %}
+                                <span class="fa fa-mobile fa-fw"></span>
+                                {{ log.device.name }}
+                            {% elif log.api_token %}
+                                <span class="fa fa-key fa-fw"></span>
+                                {{ log.api_token.name }}
+                            {% endif %}
+                        </div>
+                        <div class="col-lg-2 col-sm-12 col-xs-12">
+                            {% if log.display_object %}
+                                <span class="fa fa-flag"></span> {{ log.display_object|safe }}
+                            {% endif %}
+                        </div>
+                        <div class="col-lg-6 col-sm-12 col-xs-12">
+                            {{ log.display }}
+                            {% if staff_session %}
+                                <a href="" class="btn btn-default btn-xs" data-expandlogs data-id="{{ log.pk }}">
+                                    <span class="fa-eye fa fa-fw"></span>
+                                    {% trans "Inspect" %}
+                                </a>
+                            {% endif %}
+                        </div>
+                    </div>
+                </li>
+                {% empty %}
+                <div class="list-group-item">
+                    <em>{% trans "No results" %}</em>
+                </div>
+            {% endfor %}
+        </ul>
+        {% include "pretixcontrol/pagination.html" %}
+    </div>
 {% endblock %}

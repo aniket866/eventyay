@@ -2,11 +2,12 @@ import datetime
 from decimal import Decimal
 
 import pytest
-from django.utils.timezone import now
+from django.utils.timezone import get_current_timezone, make_aware, now
 from django_scopes import scope
 
 from eventyay.base.models import (
     Event,
+    LogEntry,
     Product as Item,
     ProductCategory as ItemCategory,
     Order,
@@ -236,3 +237,36 @@ def test_one_view(
         )
     response = logged_in_client.get(url)
     assert response.status_code == expected
+
+
+@pytest.mark.django_db
+def test_event_log_date_filter(logged_in_client, event):
+    filter_date = datetime.date(2013, 12, 26)
+    current_timezone = get_current_timezone()
+    day_start = make_aware(datetime.datetime.combine(filter_date, datetime.time.min), current_timezone)
+    day_end = make_aware(datetime.datetime.combine(filter_date, datetime.time.max), current_timezone)
+
+    entries = [
+        ('eventyay.test.before_day', day_start - datetime.timedelta(microseconds=1)),
+        ('eventyay.test.day_start', day_start),
+        ('eventyay.test.day_end', day_end),
+        ('eventyay.test.after_day', day_end + datetime.timedelta(microseconds=1)),
+    ]
+    with scope(organizer=event.organizer):
+        for action_type, timestamp in entries:
+            entry = LogEntry.objects.create(action_type=action_type, content_object=event, event=event)
+            LogEntry.objects.filter(pk=entry.pk).update(datetime=timestamp)
+
+    response = logged_in_client.get(
+        '/control/event/ccc/30c3/logs/?date_from=2013-12-26&date_to=2013-12-26'
+    )
+    actions = {entry.action_type for entry in response.context['logs']}
+    assert 'eventyay.test.day_start' in actions
+    assert 'eventyay.test.day_end' in actions
+    assert 'eventyay.test.before_day' not in actions
+    assert 'eventyay.test.after_day' not in actions
+
+    response = logged_in_client.get(
+        '/control/event/ccc/30c3/logs/?date_from=2013-12-27&date_to=2013-12-26'
+    )
+    assert 'date_to' in response.context['date_filter_form'].errors

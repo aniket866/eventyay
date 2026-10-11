@@ -29,6 +29,10 @@
   align-items: stretch;
 }
 
+.event-log-filter-bar {
+  align-items: flex-end;
+}
+
 .advanced-filter-search-query-group {
   flex: 1 1 300px;
   min-width: 0;
